@@ -1,71 +1,45 @@
 #include "main.h"
 
 #include <inttypes.h>
+#include <string.h>
 #include "sdkconfig.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <driver/gpio.h>
-#include <vector>
+#include <esp_wifi.h>
+#include <esp_event.h>
 
-constexpr const char* letters[] = {
-".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", // A-I
-".---", "-.-", ".-..", "--", "-.", "---", ".--.", "--.-", ".-.", // J-R
-"...", "-", "..-", "...-", ".--", "-..-", "-.--", "--.." // S-Z
-};
+constexpr size_t max_wifi_records = 64;
+
 
 extern "C" void app_main(void)
 {
-  std::vector<char> message;
-  message.push_back('S');
-  message.push_back('O');
-  message.push_back('S');
-  message.push_back('\0');
+  esp_netif_init();
+  esp_event_loop_create_default();
+  auto* sta_netif = esp_netif_create_default_wifi_sta();
 
-  gpio_reset_pin(blink_port);
-  gpio_set_direction(blink_port, GPIO_MODE_OUTPUT);
+  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+  esp_wifi_init(&cfg);
 
-  while (true) {
-    flash_morse(message.data());
-  }
-}
+  wifi_ap_record_t* wifi_records = new wifi_ap_record_t[max_wifi_records];
+  memset(wifi_records, 0, max_wifi_records * sizeof(wifi_records[0]));
 
-void flash_morse(const char* message) {
-  for (int i = 0; message[i] != 0; i++) {
-    auto morse_snippet = letter_to_morse(message[i]);
-    for (int j = 0; morse_snippet[j]; j++) {
-      flash_dot_or_dash(morse_snippet[j]);
-    }
-    flash_dot_or_dash(',');
-  }
-  flash_dot_or_dash(' ');
-}
 
-const char* letter_to_morse(char c) {
-  if (c >= 'a' && c <= 'z') {
-    return letters[c - 'a'];
+  esp_wifi_set_mode(WIFI_MODE_STA);
+  esp_wifi_start();
+  esp_wifi_scan_start(NULL, true);
+
+  uint16_t num_wifi_records = max_wifi_records;
+
+  esp_wifi_scan_get_ap_records(&num_wifi_records, wifi_records);
+  printf("Found %d wifi access points\n", num_wifi_records);
+  for (uint16_t i = 0; i < num_wifi_records; i++) {
+    printf("SSID: %s\n", wifi_records[i].ssid);
   }
 
-  return letters[c - 'A'];
+  delete[] wifi_records;
+
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+  esp_restart();
 }
 
-void flash_dot_or_dash(char c) {
-  switch (c) {
-    case ' ':
-      delay(space_delay);
-    break;
-    case ',':
-      delay(shortspace_delay);
-    break;
-    case '.':
-    case '-':
-      gpio_set_level(blink_port, 1);
-      delay(c == '.' ? dot_delay : dash_delay);
-      gpio_set_level(blink_port, 0);
-      delay(300);
-    break;
-  }
-}
-
-void delay(uint32_t milis) {
-  vTaskDelay(milis / portTICK_PERIOD_MS);
-}
