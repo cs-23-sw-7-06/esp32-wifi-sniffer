@@ -1,0 +1,36 @@
+menu "Sniffer Configuration"
+  config BLINK_GPIO_NUM
+    int "The GPIO number that is blinked"
+    range 0 33
+    default 2
+    help
+      "No help :)"
+
+  config BLINK_SPEED
+    int "The time between blinks in milliseconds"
+    range 10 100
+    default 25
+    help
+      "No help :)"
+
+  config PACKET_QUEUE_SIZE
+    int "The size of the packet queue"
+    range 8 128
+    default 32
+    help
+      "The size of the packet queue. Too small of a value may drop some packets."
+
+  config PACKET_QUEUE_TIMEOUT
+    int "The timeout in ms when inserting into the queue"
+    range 1 100
+    default 10
+    help
+      "The timeout in milliseconds of trying to insert a packet into the queue. A too small or too big value may drop packets."
+
+  config CHANNEL_SWITCHER_FREQUENCY
+    int "The time in milliseconds between channel switches"
+    range 10 1000
+    default 100
+    help
+      "No help :)"
+endmenu
